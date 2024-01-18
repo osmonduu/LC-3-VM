@@ -90,6 +90,35 @@ void handle_interrupt(int signal)
     exit(-2);
 }
 
+/* Sign Extend */
+uint16_t sign_extend(uint16_t x, int bit_count)
+{
+    // check if the sign bit is 1 (negative number)
+    if ((x >> (bit_count - 1)) & 1) 
+    {
+        // sign extend with 1 to 16 bits
+        x |= (0xFFFF << bit_count);
+    }
+    return x;
+}
+
+/* Update Flags */
+void update_flags(uint16_t r)
+{
+    if (reg[r] == 0)
+    {
+        reg[R_COND] = FL_ZRO;
+    }
+    else if (reg[r] >> 15)      // a 1 in the left-most bit indicates negative value
+    {
+        reg[R_COND] = FL_NEG;
+    }
+    else
+    {
+        reg[R_COND] = FL_POS;
+    }
+}
+
 /* Main Loop */
 int main(int argc, const char* argv[])
 {
@@ -194,12 +223,13 @@ void ADD(uint16_t instr)
     uint16_t r0 = (instr >> 9) & 0x7;
     // first operand (SR1)
     uint16_t r1 = (instr >> 6) & 0x7;
-    // whether we are in imediate mode
+    // whether we are in immediate mode - immediate mode indicates that the second operand is a value instead of a register
     uint16_t imm_flag = (instr >> 5) & 0x1;
 
     // in immediate mode, the second value is embedded in the right0most 5 bits of the instruction
     if (imm_flag)
-    {
+    {   
+        // immediate data is 5 bits in length (2^5=32)
         // values which are shorter than 16 bits need to be sign extended
         uint16_t imm5 = sign_extend(instr & 0x1F, 5);
         reg[r0] = reg[r1] + imm5;
