@@ -132,25 +132,25 @@ int main(int argc, const char* argv[])
         switch (op)
         {
             case OP_ADD:
-
+                ADD(instr);
                 break;
             case OP_AND:
-
+                AND(instr);
                 break;
             case OP_NOT:
-
+                NOT(instr);
                 break;
             case OP_BR:
-
+                BR(instr);
                 break;
             case OP_JMP:
-
+                JMP(instr);
                 break;
             case OP_JSR:
-
+                JSR(instr);
                 break;
             case OP_LD:
-
+                LD(instr);
                 break;
             case OP_LDI:
 
@@ -183,4 +183,128 @@ int main(int argc, const char* argv[])
     }
     /* Shutdown */
     restore_input_buffering(); 
+}
+
+
+/* ---------------------------------------------------------LOGIC FOR OPCODES--------------------------------------------------------- */
+/* ADD logic */
+void ADD(uint16_t instr) 
+{
+    // destination register (DR)
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // first operand (SR1)
+    uint16_t r1 = (instr >> 6) & 0x7;
+    // whether we are in imediate mode
+    uint16_t imm_flag = (instr >> 5) & 0x1;
+
+    // in immediate mode, the second value is embedded in the right0most 5 bits of the instruction
+    if (imm_flag)
+    {
+        // values which are shorter than 16 bits need to be sign extended
+        uint16_t imm5 = sign_extend(instr & 0x1F, 5);
+        reg[r0] = reg[r1] + imm5;
+    }
+    // in register mode, the second value to add is found in a register
+    else
+    {
+        uint16_t r2 = instr & 0x7;
+        reg[r0] = reg[r1] + reg[r2];
+    }
+
+    // any time an instruction modifies a reigster, the condition flags need to be updated
+    update_flags(r0);
+}
+
+/* AND logic */
+void AND(uint16_t instr)
+{
+    // destination register (DR)
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // first operand (SR1)
+    uint16_t r1 = (instr >> 6) & 0x7;
+    // whether we are in imediate mode - left shift instr by 5 and mask LSB to get immediate flag
+    uint16_t imm_flag = (instr >> 5) & 0x1;
+
+    // in immediate mode, the second value is embedded in the right0most 5 bits of the instruction
+    if (imm_flag)
+    {
+        // values which are shorter than 16 bits need to be sign extended
+        uint16_t imm5 = sign_extend(instr & 0x1F, 5);
+        reg[r0] = reg[r1] & imm5;
+    }
+    // in register mode, the second value is found in a register
+    else
+    {
+        uint16_t r2 = instr & 0x7;
+        reg[r0] = reg[r1] & reg[r2];
+    }
+
+    // any time an instruction modifies a reigster, the condition flags need to be updated
+    update_flags(r0);
+}
+
+/* NOT logic */
+void NOT(uint16_t instr)
+{
+    // destination register (DR)
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // first operand (SR1)
+    uint16_t r1 = (instr >> 6) & 0x7;
+
+    reg[r0] = ~reg[r1];
+    // any time an instruction modifies a reigster, the condition flags need to be updated
+    update_flags(r0);
+}
+
+/* BR (branch) logic */
+void BR(uint16_t instr) 
+{
+    uint16_t pc_offset =  sign_extend(instr & 0x1FF, 9);
+    uint16_t cond_flag = (instr >> 9) & 0x7;
+    if (cond_flag & reg[R_COND])
+    {
+        reg[R_PC] += pc_offset;
+    }
+}
+
+/* JMP (jump) logic */
+void JMP(uint16_t instr)
+{
+    // also handles RET
+    uint16_t r1 = (instr >> 6) & 0x7;
+    reg[R_PC] = reg[r1];
+}
+
+/* JSR (jump register) logic */
+void JSR(uint16_t instr) 
+{
+    uint16_t long_flag = (instr >> 11) & 1;
+    reg[R_R7] = reg[R_PC];
+    if (long_flag)
+    {
+        uint16_t long_pc_offset = sign_extend(instr & 0x7FF, 11);
+        reg[R_PC] += long_pc_offset;        // JSR
+    }
+    else
+    {
+        uint16_t r1 = (instr >> 6) & 0x7;
+        reg[R_PC] += reg[r1];       // JSRR
+    }
+}
+
+/* LD (load) logic */
+void LD(uint16_t instr)
+{
+    // destination register (DR)
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // mask 9 bits and sign extend to find the pc offset
+    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    reg[r0] = mem_read(reg[R_PC] + pc_offset);
+    update_flags(r0);
+}
+
+/* LDI (load indirect) */
+void LDI(uint16_t instr)
+{
+
 }
