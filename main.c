@@ -49,9 +49,9 @@ enum
 /* Condition flags */ 
 enum 
 {
-    FL_POS = 1 << 0,    // P = 1
-    FL_ZRO = 1 << 1,    // Z = 2
-    FL_NEG = 1 << 2     // N = 4
+    FL_POS = 1 << 0,    // P = 001
+    FL_ZRO = 1 << 1,    // Z = 010
+    FL_NEG = 1 << 2     // N = 100
 };
 
 /*------------------------------------------------------------------------------------------------------------*/
@@ -118,6 +118,8 @@ void update_flags(uint16_t r)
         reg[R_COND] = FL_POS;
     }
 }
+
+/*------------------------------------------------------------------------------------------------------------*/
 
 /* Main Loop */
 int main(int argc, const char* argv[])
@@ -216,6 +218,8 @@ int main(int argc, const char* argv[])
 
 
 /* ---------------------------------------------------------LOGIC FOR OPCODES--------------------------------------------------------- */
+/* see https://www.jmeiners.com/lc3-vm/supplies/lc3-isa.pdf for further explanation of the opcode logic*/
+
 /* ADD logic */
 void ADD(uint16_t instr) 
 {
@@ -289,8 +293,11 @@ void NOT(uint16_t instr)
 /* BR (branch) logic */
 void BR(uint16_t instr) 
 {
+    // find the offset by masking the 9 LSB and sign extend
     uint16_t pc_offset =  sign_extend(instr & 0x1FF, 9);
+    // the condition code is found taking bits [11:9] and checking if they match with any of the condition flags
     uint16_t cond_flag = (instr >> 9) & 0x7;
+    // if any of the condition codes are set, branch to the offset
     if (cond_flag & reg[R_COND])
     {
         reg[R_PC] += pc_offset;
