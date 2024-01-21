@@ -93,10 +93,10 @@ void handle_interrupt(int signal)
 /* Sign Extend */
 uint16_t sign_extend(uint16_t x, int bit_count)
 {
-    // check if the sign bit is 1 (negative number)
+    // check if the sign bit is 1 -> (negative number): this checks the sign bit to the left of the number given
     if ((x >> (bit_count - 1)) & 1) 
     {
-        // sign extend with 1 to 16 bits
+        // sign extend 1 for a total of 16 bits: left shift so that all the bits to the left of the input, x, gets OR'd and become 1
         x |= (0xFFFF << bit_count);
     }
     return x;
@@ -297,9 +297,10 @@ void BR(uint16_t instr)
     uint16_t pc_offset =  sign_extend(instr & 0x1FF, 9);
     // the condition code is found taking bits [11:9] and checking if they match with any of the condition flags
     uint16_t cond_flag = (instr >> 9) & 0x7;
-    // if any of the condition codes are set, branch to the offset
+    // if any of the condition codes are set (anything other than 000), branch to the offset
     if (cond_flag & reg[R_COND])
     {
+        // add the offset to the program counter to branch to the next instruction
         reg[R_PC] += pc_offset;
     }
 }
@@ -307,25 +308,35 @@ void BR(uint16_t instr)
 /* JMP (jump) logic */
 void JMP(uint16_t instr)
 {
-    // also handles RET
+    // also handles RET functions
+    // get bits [8:6]
     uint16_t r1 = (instr >> 6) & 0x7;
+    // jump to the specified location given by bits [8:6]
     reg[R_PC] = reg[r1];
 }
 
 /* JSR (jump register) logic */
 void JSR(uint16_t instr) 
 {
+    // find the long flag from bit 11
     uint16_t long_flag = (instr >> 11) & 1;
+    // the pc is saved and stored in register R7
     reg[R_R7] = reg[R_PC];
+    // if the long flag is 1
     if (long_flag)
     {
+        // find the offset from bits [10:0] and sign extend
         uint16_t long_pc_offset = sign_extend(instr & 0x7FF, 11);
+        // add the offset to the pc
         reg[R_PC] += long_pc_offset;        // JSR
     }
+    // if the long flag is 0
     else
     {
+        // find bits [8:6]
         uint16_t r1 = (instr >> 6) & 0x7;
-        reg[R_PC] += reg[r1];       // JSRR
+        // jump to the address specified by r1 using the pc
+        reg[R_PC] = reg[r1];       // JSRR
     }
 }
 
@@ -336,7 +347,9 @@ void LD(uint16_t instr)
     uint16_t r0 = (instr >> 9) & 0x7;
     // mask 9 bits and sign extend to find the pc offset
     uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    // add the offset to the pc and load(read) the contents of the address to register R0
     reg[r0] = mem_read(reg[R_PC] + pc_offset);
+    // udpate the flags based on register R0 because R0 changed value
     update_flags(r0);
 }
 
