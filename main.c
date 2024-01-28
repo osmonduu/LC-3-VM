@@ -157,6 +157,7 @@ int main(int argc, const char* argv[])
     while (running) 
     {
         /* FETCH */
+        // increment pc to arrive at address to a location in memory which contains an address of the value to load
         uint16_t instr = mem_read(reg[R_PC]++);
         uint16_t op = instr >> 12;
 
@@ -184,16 +185,16 @@ int main(int argc, const char* argv[])
                 LD(instr);
                 break;
             case OP_LDI:
-
+                LDI(instr);
                 break;
             case OP_LDR:
-
+                LDR(instr);
                 break;
             case OP_LEA:
-
+                LEA(instr);
                 break;
             case OP_ST:
-
+                ST(instr);
                 break;
             case OP_STI:
 
@@ -249,7 +250,7 @@ void ADD(uint16_t instr)
     update_flags(r0);
 }
 
-/* AND logic */
+/* AND logic - take the first operand and second operand, perform bitwise logical AND, then store into destination register*/
 void AND(uint16_t instr)
 {
     // destination register (DR)
@@ -277,7 +278,7 @@ void AND(uint16_t instr)
     update_flags(r0);
 }
 
-/* NOT logic */
+/* NOT logic - take first operand, perform bitwise logical NOT, then store into destination register */
 void NOT(uint16_t instr)
 {
     // destination register (DR)
@@ -290,7 +291,7 @@ void NOT(uint16_t instr)
     update_flags(r0);
 }
 
-/* BR (branch) logic */
+/* BR (branch) logic - take offset and increment the program counter if any of the condition codes are set*/
 void BR(uint16_t instr) 
 {
     // find the offset by masking the 9 LSB and sign extend
@@ -305,7 +306,7 @@ void BR(uint16_t instr)
     }
 }
 
-/* JMP (jump) logic */
+/* JMP (jump) logic - set the program counter to value stored in register */
 void JMP(uint16_t instr)
 {
     // also handles RET functions
@@ -315,7 +316,10 @@ void JMP(uint16_t instr)
     reg[R_PC] = reg[r1];
 }
 
-/* JSR (jump register) logic */
+/* JSR/JSRR (jump register) logic - SAVES the program counter into a register (R7) and:
+                                        either jumps to specified address given in register (JSR) 
+                                        or 
+                                        adds offset onto program counter and then jump (JSRR) */
 void JSR(uint16_t instr) 
 {
     // find the long flag from bit 11
@@ -340,10 +344,10 @@ void JSR(uint16_t instr)
     }
 }
 
-/* LD (load) logic */
+/* LD (load) logic - given an offset, add to program counter and store contents of address into destination register */
 void LD(uint16_t instr)
 {
-    // destination register (DR)
+    // destination register (DR) - get bits [11:9]
     uint16_t r0 = (instr >> 9) & 0x7;
     // mask 9 bits and sign extend to find the pc offset
     uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
@@ -353,8 +357,59 @@ void LD(uint16_t instr)
     update_flags(r0);
 }
 
-/* LDI (load indirect) */
+/* 
+    LD is limited to address offset of 9 bits which get added to the current PC. It is useful in loading values from neighboring addresses 
+    LDI is useful to loading values in locations far away but the address to that value has to be stored in an address nearby to the current PC.
+*/
+
+/* LDI (load indirect) logic - add offset to program counter to find address which holds another address that holds the value needed and store value into destination register */
 void LDI(uint16_t instr)
 {
+    // destination register (DR) - get bits [11:9]
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // PCOffset - get bits [8:0] and sign extend to 16 bits
+    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    // add pc_offset to the current PC, look at that memory location to get the final address
+    reg[r0] = mem_read(mem_read(reg[R_PC] + pc_offset));
+    // update flags after changing register value
+    update_flags(r0);
+}
 
+/* LDR (load register) logic - add an offset to a given base register and store contents of incremeneted address into destination register */
+void LDR(uint16_t instr) 
+{
+    // destination register (DR) - get bits [11:9]
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // base register (baseR) - get bits [8:6]
+    uint16_t r1 = (instr >> 6) & 0x7;
+    // get 6 bit offset (bits [5:0]) and sign extend to 16 bits
+    uint16_t offset = sign_extend(instr & 0x3F, 6);
+    // add the offset to the base register and read the contents of this address into r0
+    reg[r0] = mem_read(reg[r1] + offset);
+    // update flags after changing register value
+    update_flags(r0);
+}
+
+/* LEA (load effective address) logic - add an offset to program counter and store the address value into destination register */
+void LEA(uint16_t instr)
+{
+    // destination register (DR) - get bits [11:9]
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // PCOffset - get bits [8:0] and sign extend to 16 bits
+    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    // add offset to PC and store address into r0
+    reg[r0] = reg[R_PC] + pc_offset;
+    // update flags after changing register value
+    update_flags(r0);
+}
+
+/* ST (store) logic - add offset to program counter and store contents of given register into the address */
+void ST(uint16_t instr)
+{
+    // SR - get bits [11:9]
+    uint16_t r0 = (instr >> 9) & 0x7;
+    // PCOffset - get bits [8:0] and sign extend to 16 bits
+    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    // add offset to PC and write the contents of r0
+    mem_write(reg[R_PC] + pc_offset, reg[r0]);
 }
