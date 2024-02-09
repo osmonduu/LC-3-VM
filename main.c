@@ -406,7 +406,7 @@ void LEA(uint16_t instr)
 /* ST (Store) logic - add offset to program counter and store contents of given register into the address */
 void ST(uint16_t instr)
 {
-    // store register (SR) - get bits [11:9]
+    // source register (SR) - get bits [11:9]
     uint16_t r0 = (instr >> 9) & 0x7;
     // PCOffset - get bits [8:0] and sign extend to 16 bits
     uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
@@ -417,7 +417,7 @@ void ST(uint16_t instr)
 /* STI (Store Indirect) logic - add offset to program counter to get an address whhich stores the destination address in which the contents of r0 will be written into */
 void STI(uint16_t instr)
 {
-    // store register (SR) - get bits [11:9]
+    // source register (SR) - get bits [11:9]
     uint16_t r0 = (instr >> 9) & 0x7;
     // PCOffset - get bits [8:0] and sign extend to 16 bits
     uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
@@ -428,7 +428,7 @@ void STI(uint16_t instr)
 /* STR (Store Register) logic -  store the contents of the first operand into the sum of the offset and the address stored in the second operand  */
 void STR(uint16_t instr)
 {
-    // store register (SR) - get bits [11:9]
+    // source register (SR) - get bits [11:9]
     uint16_t r0 = (instr >> 9) & 0x7;
     // base register (BaseR) - get bits [8:6]
     uint16_t r1 = (instr >> 6) & 0x7;
